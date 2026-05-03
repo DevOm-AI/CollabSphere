@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
@@ -21,11 +21,17 @@ router = APIRouter(prefix="/collaborations", tags=["collaborations"])
 
 
 @router.get("", response_model=list[CollaborationRead])
-def list_collaborations(db: Session = Depends(get_db)) -> list[dict]:
+def list_collaborations(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[dict]:
     collaborations = (
         db.query(Collaboration)
         .options(joinedload(Collaboration.owner))
         .order_by(Collaboration.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
     return [serialize_collaboration(db, collaboration) for collaboration in collaborations]

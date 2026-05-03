@@ -32,7 +32,8 @@ export const api = {
   me: () => request("/users/me"),
   updateMe: (payload) => request("/users/me", { method: "PUT", body: JSON.stringify(payload) }),
   changePassword: (payload) => request("/users/me/password", { method: "PUT", body: JSON.stringify(payload) }),
-  listCollaborations: () => request("/collaborations"),
+  listCollaborations: ({ limit = 20, offset = 0 } = {}) =>
+    request(`/collaborations?limit=${limit}&offset=${offset}`),
   createCollaboration: (payload) =>
     request("/collaborations", { method: "POST", body: JSON.stringify(payload) }),
   updateCollaboration: (id, payload) =>

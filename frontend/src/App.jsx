@@ -15,12 +15,15 @@ const navItems = [
   { id: "collaborations", label: "Collaborations", kicker: "History" },
   { id: "settings", label: "Settings", kicker: "Control" },
 ];
+const POSTS_PAGE_SIZE = 20;
 
 export default function App() {
   const { user, loading, logout } = useAuth();
   const [collaborations, setCollaborations] = useState([]);
   const [joinedCollaborations, setJoinedCollaborations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [postsOffset, setPostsOffset] = useState(0);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
   const [activeSection, setActiveSection] = useState("posts");
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -35,10 +38,26 @@ export default function App() {
 
   async function refreshCollaborations() {
     try {
-      const [posts, joined] = await Promise.all([api.listCollaborations(), api.myCollaborations()]);
+      const [posts, joined] = await Promise.all([
+        api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0 }),
+        api.myCollaborations(),
+      ]);
       setCollaborations(posts);
       setJoinedCollaborations(joined);
+      setPostsOffset(posts.length);
+      setHasMorePosts(posts.length === POSTS_PAGE_SIZE);
       setSelectedId((current) => current ?? posts[0]?.id ?? null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function loadMorePosts() {
+    try {
+      const nextPosts = await api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: postsOffset });
+      setCollaborations((items) => [...items, ...nextPosts]);
+      setPostsOffset((current) => current + nextPosts.length);
+      setHasMorePosts(nextPosts.length === POSTS_PAGE_SIZE);
     } catch (err) {
       setError(err.message);
     }
@@ -157,6 +176,11 @@ export default function App() {
               />
             </div>
             <CollaborationList collaborations={filteredCollaborations} selectedId={selectedId} onSelect={setSelectedId} />
+            {hasMorePosts && (
+              <button className="load-more" type="button" onClick={loadMorePosts}>
+                Load More Posts
+              </button>
+            )}
           </div>
           <CollaborationDetail
             id={selectedPost?.id ?? null}

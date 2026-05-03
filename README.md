@@ -139,7 +139,7 @@ Open `http://localhost:5173`.
 - `GET /api/users/me`
 - `PUT /api/users/me`
 - `PUT /api/users/me/password`
-- `GET /api/collaborations`
+- `GET /api/collaborations?limit=20&offset=0`
 - `POST /api/collaborations`
 - `GET /api/collaborations/{id}`
 - `PUT /api/collaborations/{id}`
