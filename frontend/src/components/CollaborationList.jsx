@@ -20,6 +20,7 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
                   )
                 : "Date not set"}
             </small>
+            {collaboration.skill_match_count > 0 && <small>{collaboration.skill_match_count} skill matches</small>}
           </span>
           <span className={collaboration.is_full ? "badge full" : "badge"}>
             {collaboration.is_full ? "Full" : `${collaboration.slots_available} Slots Available`}

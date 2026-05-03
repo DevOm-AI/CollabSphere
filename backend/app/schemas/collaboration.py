@@ -35,6 +35,7 @@ class CollaborationRead(BaseModel):
     accepted_count: int
     slots_available: int
     is_full: bool
+    skill_match_count: int = 0
     owner: UserRead
     created_at: datetime
 

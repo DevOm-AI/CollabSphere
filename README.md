@@ -34,8 +34,11 @@ frontend/
 
 ## Database Schema
 
-- `users`: account, profile, mobile number, email, department, graduation year, portfolio, notification preference, skills, interests, contributions
-- `collaborations`: post title, post type, description, required skills, owner, total slots, event date/time
+- `users`: account, profile, mobile number, email, department, graduation year, portfolio, notification preference, interests, contributions
+- `skills`: normalized skill names used for matching
+- `user_skills`: many-to-many links between users and skills
+- `collaboration_required_skills`: many-to-many links between collaborations and required skills
+- `collaborations`: post title, post type, description, owner, total slots, event date/time
 - `applications`: applicant, collaboration, message, offered skills, status
 
 Application statuses are `pending`, `accepted`, and `rejected`. Available slots are computed as `collaboration.slots - accepted_applications`.
@@ -140,6 +143,7 @@ Open `http://localhost:5173`.
 - `PUT /api/users/me`
 - `PUT /api/users/me/password`
 - `GET /api/collaborations?limit=20&offset=0`
+- `GET /api/collaborations?match_my_skills=true&min_skill_matches=2`
 - `POST /api/collaborations`
 - `GET /api/collaborations/{id}`
 - `PUT /api/collaborations/{id}`
@@ -164,9 +168,10 @@ Open `http://localhost:5173`.
 ## UI Sections
 
 - Open Posts: browse posts, inspect event details, view applicant contact details as the creator, and create posts from a modal.
-- Open Posts search: filter by title, creator name, post type, or event date.
+- Open Posts search: filter by title, creator name, required skill, post type, or event date.
+- Skill matching: filter open posts where the signed-in student's skills match at least a chosen number of required skills.
 - Student Profile: visual profile page with editable name, mobile number, skills, interests, and contributions.
 - Collaborations: application history for the signed-in student.
 - Settings: change password, department, graduation year, portfolio link, and email notification preference.
 
-Existing development databases are upgraded on backend startup with the new `mobile_number`, settings, `post_type`, `event_datetime`, and `offered_skills` columns.
+Existing development databases are upgraded on backend startup with the new `mobile_number`, settings, `post_type`, `event_datetime`, `offered_skills`, and normalized skill matching tables.

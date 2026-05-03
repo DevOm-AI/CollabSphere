@@ -17,7 +17,7 @@ def accepted_count(db: Session, collaboration_id: int) -> int:
     )
 
 
-def serialize_collaboration(db: Session, collaboration: Collaboration) -> dict:
+def serialize_collaboration(db: Session, collaboration: Collaboration, skill_match_count: int = 0) -> dict:
     accepted = accepted_count(db, collaboration.id)
     available = max(collaboration.slots - accepted, 0)
     return {
@@ -31,6 +31,7 @@ def serialize_collaboration(db: Session, collaboration: Collaboration) -> dict:
         "accepted_count": accepted,
         "slots_available": available,
         "is_full": available == 0,
+        "skill_match_count": skill_match_count,
         "owner": collaboration.owner,
         "created_at": collaboration.created_at,
     }

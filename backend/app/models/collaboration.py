@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.skill import collaboration_required_skills
 
 
 class Collaboration(Base):
@@ -14,7 +15,7 @@ class Collaboration(Base):
     title: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
     post_type: Mapped[str] = mapped_column(String(80), default="Event", nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    required_skills: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    legacy_required_skills: Mapped[list[str]] = mapped_column("required_skills", ARRAY(String), default=list, nullable=False)
     slots: Mapped[int] = mapped_column(Integer, nullable=False)
     event_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -22,3 +23,15 @@ class Collaboration(Base):
 
     owner = relationship("User", back_populates="collaborations")
     applications = relationship("Application", back_populates="collaboration", cascade="all, delete-orphan")
+    required_skill_records = relationship(
+        "Skill",
+        secondary=collaboration_required_skills,
+        back_populates="collaborations",
+        order_by="Skill.name",
+    )
+
+    @property
+    def required_skills(self) -> list[str]:
+        if self.required_skill_records:
+            return [skill.name for skill in self.required_skill_records]
+        return self.legacy_required_skills or []

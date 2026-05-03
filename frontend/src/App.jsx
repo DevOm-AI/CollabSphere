@@ -29,24 +29,26 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [matchMySkills, setMatchMySkills] = useState(false);
+  const [minSkillMatches, setMinSkillMatches] = useState(2);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!user) return;
     refreshCollaborations();
-  }, [user]);
+  }, [user, matchMySkills, minSkillMatches]);
 
   async function refreshCollaborations() {
     try {
       const [posts, joined] = await Promise.all([
-        api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0 }),
+        api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0, matchMySkills, minSkillMatches }),
         api.myCollaborations(),
       ]);
       setCollaborations(posts);
       setJoinedCollaborations(joined);
       setPostsOffset(posts.length);
       setHasMorePosts(posts.length === POSTS_PAGE_SIZE);
-      setSelectedId((current) => current ?? posts[0]?.id ?? null);
+      setSelectedId((current) => (posts.some((post) => post.id === current) ? current : posts[0]?.id ?? null));
     } catch (err) {
       setError(err.message);
     }
@@ -54,7 +56,12 @@ export default function App() {
 
   async function loadMorePosts() {
     try {
-      const nextPosts = await api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: postsOffset });
+      const nextPosts = await api.listCollaborations({
+        limit: POSTS_PAGE_SIZE,
+        offset: postsOffset,
+        matchMySkills,
+        minSkillMatches,
+      });
       setCollaborations((items) => [...items, ...nextPosts]);
       setPostsOffset((current) => current + nextPosts.length);
       setHasMorePosts(nextPosts.length === POSTS_PAGE_SIZE);
@@ -91,7 +98,7 @@ export default function App() {
     const dateText = post.event_datetime
       ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(post.event_datetime))
       : "";
-    const haystack = `${post.title} ${post.owner.name} ${post.post_type} ${dateText}`.toLowerCase();
+    const haystack = `${post.title} ${post.owner.name} ${post.post_type} ${dateText} ${post.required_skills.join(" ")}`.toLowerCase();
     return haystack.includes(searchQuery.toLowerCase().trim());
   });
   const selectedPost = collaborations.find((item) => item.id === selectedId);
@@ -172,8 +179,29 @@ export default function App() {
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search title, creator, type, or date"
+                placeholder="Search title, creator, skill, type, or date"
               />
+            </div>
+            <div className="filter-row">
+              <label className="toggle-row skill-match-toggle">
+                <input
+                  checked={matchMySkills}
+                  onChange={(event) => setMatchMySkills(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Match my skills</span>
+              </label>
+              <label className="match-count">
+                <span>Minimum matches</span>
+                <input
+                  disabled={!matchMySkills}
+                  max="50"
+                  min="1"
+                  onChange={(event) => setMinSkillMatches(Number(event.target.value) || 1)}
+                  type="number"
+                  value={minSkillMatches}
+                />
+              </label>
             </div>
             <CollaborationList collaborations={filteredCollaborations} selectedId={selectedId} onSelect={setSelectedId} />
             {hasMorePosts && (

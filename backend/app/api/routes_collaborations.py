@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_current_user
+from app.api.skills import set_collaboration_required_skills
 from app.api.utils import accepted_count, serialize_collaboration, slot_payload
 from app.core.database import get_db
 from app.models.application import Application, ApplicationStatus
 from app.models.collaboration import Collaboration
+from app.models.skill import collaboration_required_skills
 from app.models.user import User
 from app.realtime import manager
 from app.schemas.collaboration import (
@@ -24,17 +27,51 @@ router = APIRouter(prefix="/collaborations", tags=["collaborations"])
 def list_collaborations(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    match_my_skills: bool = Query(default=False),
+    min_skill_matches: int = Query(default=1, ge=1, le=50),
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> list[dict]:
-    collaborations = (
-        db.query(Collaboration)
-        .options(joinedload(Collaboration.owner))
-        .order_by(Collaboration.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
+    query = db.query(Collaboration).options(
+        joinedload(Collaboration.owner),
+        selectinload(Collaboration.required_skill_records),
     )
-    return [serialize_collaboration(db, collaboration) for collaboration in collaborations]
+    matched_skill_ids: set[int] = set()
+
+    if match_my_skills:
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="Skill matching requires authentication")
+
+        matched_skill_ids = {skill.id for skill in current_user.skill_records}
+        if not matched_skill_ids:
+            return []
+
+        skill_matches = (
+            db.query(
+                collaboration_required_skills.c.collaboration_id,
+                func.count(func.distinct(collaboration_required_skills.c.skill_id)).label("skill_match_count"),
+            )
+            .filter(collaboration_required_skills.c.skill_id.in_(matched_skill_ids))
+            .group_by(collaboration_required_skills.c.collaboration_id)
+            .having(func.count(func.distinct(collaboration_required_skills.c.skill_id)) >= min_skill_matches)
+            .subquery()
+        )
+        query = query.join(skill_matches, Collaboration.id == skill_matches.c.collaboration_id).order_by(
+            skill_matches.c.skill_match_count.desc(),
+            Collaboration.created_at.desc(),
+        )
+    else:
+        query = query.order_by(Collaboration.created_at.desc())
+
+    collaborations = query.offset(offset).limit(limit).all()
+    return [
+        serialize_collaboration(
+            db,
+            collaboration,
+            skill_match_count=len({skill.id for skill in collaboration.required_skill_records} & matched_skill_ids),
+        )
+        for collaboration in collaborations
+    ]
 
 
 @router.post("", response_model=CollaborationRead, status_code=status.HTTP_201_CREATED)
@@ -47,12 +84,12 @@ def create_collaboration(
         title=payload.title,
         post_type=payload.post_type,
         description=payload.description,
-        required_skills=payload.required_skills,
         slots=payload.slots,
         event_datetime=payload.event_datetime,
         owner_id=current_user.id,
     )
     db.add(collaboration)
+    set_collaboration_required_skills(db, collaboration, payload.required_skills)
     db.commit()
     db.refresh(collaboration)
     return serialize_collaboration(db, collaboration)
@@ -90,12 +127,15 @@ async def update_collaboration(
         raise HTTPException(status_code=403, detail="Only the owner can modify this post")
 
     update_data = payload.model_dump(exclude_unset=True)
+    required_skills = update_data.pop("required_skills", None)
     if "slots" in update_data and update_data["slots"] is not None:
         if update_data["slots"] < accepted_count(db, collaboration_id):
             raise HTTPException(status_code=400, detail="Slots cannot be lower than accepted teammates")
 
     for field, value in update_data.items():
         setattr(collaboration, field, value)
+    if required_skills is not None:
+        set_collaboration_required_skills(db, collaboration, required_skills)
 
     db.commit()
     db.refresh(collaboration)

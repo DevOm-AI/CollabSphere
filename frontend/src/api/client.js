@@ -32,8 +32,14 @@ export const api = {
   me: () => request("/users/me"),
   updateMe: (payload) => request("/users/me", { method: "PUT", body: JSON.stringify(payload) }),
   changePassword: (payload) => request("/users/me/password", { method: "PUT", body: JSON.stringify(payload) }),
-  listCollaborations: ({ limit = 20, offset = 0 } = {}) =>
-    request(`/collaborations?limit=${limit}&offset=${offset}`),
+  listCollaborations: ({ limit = 20, offset = 0, matchMySkills = false, minSkillMatches = 1 } = {}) => {
+    const params = new URLSearchParams({ limit, offset });
+    if (matchMySkills) {
+      params.set("match_my_skills", "true");
+      params.set("min_skill_matches", minSkillMatches);
+    }
+    return request(`/collaborations?${params.toString()}`);
+  },
   createCollaboration: (payload) =>
     request("/collaborations", { method: "POST", body: JSON.stringify(payload) }),
   updateCollaboration: (id, payload) =>

@@ -1,13 +1,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.orm import selectinload
 
 from app.api import routes_auth, routes_collaborations, routes_users, routes_ws
+from app.api.skills import set_collaboration_required_skills, set_user_skills
 from app.core.config import get_settings
-from app.core.database import Base, engine
+from app.core.database import Base, SessionLocal, engine
+from app.models.collaboration import Collaboration
+from app.models.user import User
 
 
 settings = get_settings()
+
+
+def backfill_normalized_skills() -> None:
+    db = SessionLocal()
+    try:
+        users = db.query(User).options(selectinload(User.skill_records)).all()
+        for user in users:
+            if not user.skill_records and user.legacy_skills:
+                set_user_skills(db, user, user.legacy_skills)
+
+        collaborations = db.query(Collaboration).options(selectinload(Collaboration.required_skill_records)).all()
+        for collaboration in collaborations:
+            if not collaboration.required_skill_records and collaboration.legacy_required_skills:
+                set_collaboration_required_skills(db, collaboration, collaboration.legacy_required_skills)
+        db.commit()
+    finally:
+        db.close()
 
 
 def create_app() -> FastAPI:
@@ -49,6 +70,7 @@ def create_app() -> FastAPI:
                     "ADD COLUMN IF NOT EXISTS offered_skills TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]"
                 )
             )
+        backfill_normalized_skills()
 
     @app.get("/health")
     def health() -> dict[str, str]:

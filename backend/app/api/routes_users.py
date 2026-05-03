@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_current_user
+from app.api.skills import set_user_skills
 from app.api.utils import serialize_collaboration
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password
@@ -26,8 +27,11 @@ def update_me(
     current_user: User = Depends(get_current_user),
 ) -> User:
     update_data = payload.model_dump(exclude_unset=True)
+    skills = update_data.pop("skills", None)
     for field, value in update_data.items():
         setattr(current_user, field, value)
+    if skills is not None:
+        set_user_skills(db, current_user, skills)
     db.commit()
     db.refresh(current_user)
     return current_user
