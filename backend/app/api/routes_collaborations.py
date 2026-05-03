@@ -80,8 +80,8 @@ async def update_collaboration(
 ) -> dict:
     collaboration = (
         db.query(Collaboration)
-        .options(joinedload(Collaboration.owner))
         .filter(Collaboration.id == collaboration_id)
+        .with_for_update()
         .first()
     )
     if collaboration is None:
@@ -186,7 +186,12 @@ async def decide_application(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Application:
-    collaboration = db.get(Collaboration, collaboration_id)
+    collaboration = (
+        db.query(Collaboration)
+        .filter(Collaboration.id == collaboration_id)
+        .with_for_update()
+        .first()
+    )
     if collaboration is None:
         raise HTTPException(status_code=404, detail="Collaboration not found")
     if collaboration.owner_id != current_user.id:
