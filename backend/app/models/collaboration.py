@@ -18,6 +18,8 @@ class Collaboration(Base):
     legacy_required_skills: Mapped[list[str]] = mapped_column("required_skills", ARRAY(String), default=list, nullable=False)
     slots: Mapped[int] = mapped_column(Integer, nullable=False)
     event_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    post_status: Mapped[str] = mapped_column(String(40), default="Open", nullable=False, index=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

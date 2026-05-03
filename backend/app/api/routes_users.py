@@ -1,16 +1,19 @@
+from collections import Counter
+
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.collaboration_lifecycle import POST_STATUS_ARCHIVED, archive_expired_collaborations
 from app.api.deps import get_current_user
 from app.api.skills import set_user_skills
 from app.api.utils import serialize_collaboration
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password
-from app.models.application import Application
+from app.models.application import Application, ApplicationStatus
 from app.models.collaboration import Collaboration
 from app.models.user import User
-from app.schemas.collaboration import JoinedCollaborationRead
+from app.schemas.collaboration import JoinedCollaborationRead, ProfilePortfolioRead
 from app.schemas.user import PasswordChange, ProfileUpdate, UserRead
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -56,6 +59,7 @@ def my_joined_collaborations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
+    archive_expired_collaborations(db)
     applications = (
         db.query(Application)
         .options(
@@ -75,3 +79,94 @@ def my_joined_collaborations(
         }
         for application in applications
     ]
+
+
+def portfolio_headline(name: str, counts: Counter[str]) -> str:
+    total = sum(counts.values())
+    if total == 0:
+        return f"{name} has no archived collaborations yet."
+
+    parts = []
+    for post_type, count in counts.most_common():
+        label = portfolio_type_label(post_type, count)
+        parts.append(f"{count} {label}")
+
+    if len(parts) == 1:
+        summary = parts[0]
+    else:
+        summary = f"{', '.join(parts[:-1])} and {parts[-1]}"
+    return f"{name} collaborated on {summary}."
+
+
+def portfolio_type_label(post_type: str, count: int) -> str:
+    normalized = post_type.strip().lower()
+    if normalized == "research":
+        return "research project" if count == 1 else "research projects"
+    if count == 1:
+        return normalized
+    if normalized.endswith("s"):
+        return normalized
+    return f"{normalized}s"
+
+
+def item_completed_timestamp(item: dict) -> float:
+    completed_at = item["completed_at"] or item["collaboration"]["created_at"]
+    return completed_at.timestamp()
+
+
+@router.get("/me/portfolio", response_model=ProfilePortfolioRead)
+def my_portfolio(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    archive_expired_collaborations(db)
+
+    accepted_applications = (
+        db.query(Application)
+        .options(
+            joinedload(Application.collaboration).joinedload(Collaboration.owner),
+        )
+        .join(Collaboration, Application.collaboration_id == Collaboration.id)
+        .filter(
+            Application.applicant_id == current_user.id,
+            Application.status == ApplicationStatus.accepted,
+            Collaboration.post_status == POST_STATUS_ARCHIVED,
+        )
+        .all()
+    )
+    owned_collaborations = (
+        db.query(Collaboration)
+        .options(joinedload(Collaboration.owner), selectinload(Collaboration.required_skill_records))
+        .filter(
+            Collaboration.owner_id == current_user.id,
+            Collaboration.post_status == POST_STATUS_ARCHIVED,
+        )
+        .all()
+    )
+
+    items = [
+        {
+            "role": "Collaborator",
+            "completed_at": application.collaboration.event_datetime or application.collaboration.archived_at,
+            "offered_skills": application.offered_skills,
+            "collaboration": serialize_collaboration(db, application.collaboration),
+        }
+        for application in accepted_applications
+    ]
+    items.extend(
+        {
+            "role": "Creator",
+            "completed_at": collaboration.event_datetime or collaboration.archived_at,
+            "offered_skills": [],
+            "collaboration": serialize_collaboration(db, collaboration),
+        }
+        for collaboration in owned_collaborations
+    )
+    items.sort(key=item_completed_timestamp, reverse=True)
+
+    counts = Counter(item["collaboration"]["post_type"] for item in items)
+    return {
+        "headline": portfolio_headline(current_user.name, counts),
+        "summary": [{"post_type": post_type, "count": count} for post_type, count in counts.most_common()],
+        "items": items,
+    }

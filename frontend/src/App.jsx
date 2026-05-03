@@ -17,10 +17,16 @@ const navItems = [
 ];
 const POSTS_PAGE_SIZE = 20;
 
+function formatDate(value) {
+  if (!value) return "Date not set";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+}
+
 export default function App() {
   const { user, loading, logout } = useAuth();
   const [collaborations, setCollaborations] = useState([]);
   const [joinedCollaborations, setJoinedCollaborations] = useState([]);
+  const [portfolio, setPortfolio] = useState({ headline: "", summary: [], items: [] });
   const [selectedId, setSelectedId] = useState(null);
   const [postsOffset, setPostsOffset] = useState(0);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -40,12 +46,14 @@ export default function App() {
 
   async function refreshCollaborations() {
     try {
-      const [posts, joined] = await Promise.all([
+      const [posts, joined, portfolioData] = await Promise.all([
         api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0, matchMySkills, minSkillMatches }),
         api.myCollaborations(),
+        api.myPortfolio(),
       ]);
       setCollaborations(posts);
       setJoinedCollaborations(joined);
+      setPortfolio(portfolioData);
       setPostsOffset(posts.length);
       setHasMorePosts(posts.length === POSTS_PAGE_SIZE);
       setSelectedId((current) => (posts.some((post) => post.id === current) ? current : posts[0]?.id ?? null));
@@ -103,7 +111,7 @@ export default function App() {
   });
   const selectedPost = collaborations.find((item) => item.id === selectedId);
   const selectedApplication = joinedCollaborations.find((item) => item.collaboration.id === selectedPost?.id);
-  const acceptedCount = joinedCollaborations.filter((item) => item.status === "accepted").length;
+  const completedCount = portfolio.items.length;
 
   return (
     <main className="app-shell">
@@ -238,12 +246,53 @@ export default function App() {
                 <span>Posts</span>
               </div>
               <div>
-                <strong>{acceptedCount}</strong>
-                <span>Teams</span>
+                <strong>{completedCount}</strong>
+                <span>Completed</span>
               </div>
             </div>
+            <p className="achievement-line">{portfolio.headline}</p>
           </div>
-          <ProfileForm />
+          <div className="profile-main stack">
+            <section className="panel stack portfolio-panel">
+              <div className="section-head">
+                <div>
+                  <p className="eyebrow">Portfolio</p>
+                  <h2>Achievement Timeline</h2>
+                </div>
+                <span>{completedCount} archived</span>
+              </div>
+              <p className="portfolio-headline">{portfolio.headline}</p>
+              <div className="portfolio-summary">
+                {portfolio.summary.map((item) => (
+                  <span key={item.post_type}>
+                    <strong>{item.count}</strong> {item.post_type}
+                  </span>
+                ))}
+              </div>
+              <div className="timeline">
+                {portfolio.items.map((item) => (
+                  <article className="timeline-item" key={`${item.role}-${item.collaboration.id}`}>
+                    <div className="timeline-dot" />
+                    <div>
+                      <span className="history-status">{item.role}</span>
+                      <h3>{item.collaboration.title}</h3>
+                      <small>
+                        {item.collaboration.post_type} completed {formatDate(item.completed_at)}
+                      </small>
+                      <p>{item.collaboration.description}</p>
+                      <div className="tags tiny">
+                        {(item.offered_skills.length ? item.offered_skills : item.collaboration.required_skills).map((skill) => (
+                          <span key={skill}>{skill}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+                {portfolio.items.length === 0 && <p className="muted">Archived collaborations will appear here after event dates pass.</p>}
+              </div>
+            </section>
+            <ProfileForm />
+          </div>
         </section>
       )}
 
@@ -260,6 +309,7 @@ export default function App() {
             {joinedCollaborations.map((item) => (
               <article className={`history-card ${item.status}`} key={item.application_id}>
                 <span className="history-status">{item.status}</span>
+                {item.collaboration.is_archived && <span className="history-status archived-status">archived</span>}
                 <h3>{item.collaboration.title}</h3>
                 <p>{item.collaboration.description}</p>
                 <small>Owner: {item.collaboration.owner.name}</small>

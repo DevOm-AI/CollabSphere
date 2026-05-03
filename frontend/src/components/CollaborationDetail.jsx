@@ -71,6 +71,7 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
   }
 
   const isOwner = collaboration.owner.id === user.id;
+  const isArchived = collaboration.is_archived;
 
   function beginEdit() {
     setEditForm({
@@ -130,6 +131,13 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
     }
   }
 
+  function applyButtonLabel() {
+    if (isArchived) return "Archived";
+    if (appliedStatus === "accepted") return "Applied";
+    if (appliedStatus === "pending") return "Application Pending";
+    return "Apply";
+  }
+
   async function kick(applicationId) {
     await decide(applicationId, "rejected");
   }
@@ -148,14 +156,14 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
     <section className="glass-panel detail stack pop-in">
       <div className="detail-head">
         <div>
-          <p className="eyebrow">Open Post</p>
+          <p className="eyebrow">{isArchived ? "Archived Post" : "Open Post"}</p>
           <h2>{collaboration.title}</h2>
           <p className="muted">
             {collaboration.post_type} by {collaboration.owner.name}
           </p>
         </div>
-        <span className={collaboration.is_full ? "badge full" : "badge"}>
-          {collaboration.is_full ? "Full" : `${collaboration.slots_available} Slots Available`}
+        <span className={isArchived ? "badge archived" : collaboration.is_full ? "badge full" : "badge"}>
+          {isArchived ? "Archived" : collaboration.is_full ? "Full" : `${collaboration.slots_available} Slots Available`}
         </span>
       </div>
 
@@ -258,9 +266,9 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
           <button
             className={appliedStatus === "accepted" ? "applied-button" : "primary pulse-action"}
             type="submit"
-            disabled={collaboration.is_full || Boolean(appliedStatus)}
+            disabled={isArchived || collaboration.is_full || Boolean(appliedStatus)}
           >
-            {appliedStatus === "accepted" ? "Applied" : appliedStatus === "pending" ? "Application Pending" : "Apply"}
+            {applyButtonLabel()}
           </button>
         </form>
       )}

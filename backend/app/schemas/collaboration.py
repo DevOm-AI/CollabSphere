@@ -32,6 +32,9 @@ class CollaborationRead(BaseModel):
     required_skills: list[str]
     slots: int
     event_datetime: datetime | None
+    post_status: str
+    archived_at: datetime | None
+    is_archived: bool
     accepted_count: int
     slots_available: int
     is_full: bool
@@ -66,3 +69,21 @@ class JoinedCollaborationRead(BaseModel):
     status: ApplicationStatus
     offered_skills: list[str]
     collaboration: CollaborationRead
+
+
+class PortfolioSummaryItem(BaseModel):
+    post_type: str
+    count: int
+
+
+class PortfolioItemRead(BaseModel):
+    role: str
+    completed_at: datetime | None
+    offered_skills: list[str] = []
+    collaboration: CollaborationRead
+
+
+class ProfilePortfolioRead(BaseModel):
+    headline: str
+    summary: list[PortfolioSummaryItem]
+    items: list[PortfolioItemRead]

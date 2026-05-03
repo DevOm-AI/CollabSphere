@@ -31,6 +31,7 @@ export const api = {
   login: (payload) => request("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   me: () => request("/users/me"),
   updateMe: (payload) => request("/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+  myPortfolio: () => request("/users/me/portfolio"),
   changePassword: (payload) => request("/users/me/password", { method: "PUT", body: JSON.stringify(payload) }),
   listCollaborations: ({ limit = 20, offset = 0, matchMySkills = false, minSkillMatches = 1 } = {}) => {
     const params = new URLSearchParams({ limit, offset });

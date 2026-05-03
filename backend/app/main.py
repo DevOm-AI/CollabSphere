@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import selectinload
 
 from app.api import routes_auth, routes_collaborations, routes_users, routes_ws
+from app.api.collaboration_lifecycle import archive_expired_collaborations
 from app.api.skills import set_collaboration_required_skills, set_user_skills
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
@@ -70,12 +71,18 @@ def create_app() -> FastAPI:
                 text("ALTER TABLE collaborations ADD COLUMN IF NOT EXISTS event_datetime TIMESTAMP WITH TIME ZONE")
             )
             connection.execute(
+                text("ALTER TABLE collaborations ADD COLUMN IF NOT EXISTS post_status VARCHAR(40) NOT NULL DEFAULT 'Open'")
+            )
+            connection.execute(text("ALTER TABLE collaborations ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE"))
+            connection.execute(
                 text(
                     "ALTER TABLE applications "
                     "ADD COLUMN IF NOT EXISTS offered_skills TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]"
                 )
             )
         backfill_normalized_skills()
+        with SessionLocal() as db:
+            archive_expired_collaborations(db)
 
     @app.get("/health")
     def health() -> dict[str, str]:

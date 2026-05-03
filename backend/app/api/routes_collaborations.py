@@ -2,6 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.api.collaboration_lifecycle import (
+    POST_STATUS_ARCHIVED,
+    POST_STATUS_OPEN,
+    apply_post_lifecycle,
+    archive_expired_collaborations,
+)
 from app.api.deps import get_current_user, get_optional_current_user
 from app.api.skills import set_collaboration_required_skills
 from app.api.utils import accepted_count, serialize_collaboration, slot_payload
@@ -27,16 +33,21 @@ router = APIRouter(prefix="/collaborations", tags=["collaborations"])
 def list_collaborations(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    post_status: str = Query(default=POST_STATUS_OPEN, pattern="^(Open|Archived|All)$"),
     match_my_skills: bool = Query(default=False),
     min_skill_matches: int = Query(default=1, ge=1, le=50),
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ) -> list[dict]:
+    archive_expired_collaborations(db)
     query = db.query(Collaboration).options(
         joinedload(Collaboration.owner),
         selectinload(Collaboration.required_skill_records),
     )
     matched_skill_ids: set[int] = set()
+
+    if post_status != "All":
+        query = query.filter(Collaboration.post_status == post_status)
 
     if match_my_skills:
         if current_user is None:
@@ -88,6 +99,7 @@ def create_collaboration(
         event_datetime=payload.event_datetime,
         owner_id=current_user.id,
     )
+    apply_post_lifecycle(collaboration)
     db.add(collaboration)
     set_collaboration_required_skills(db, collaboration, payload.required_skills)
     db.commit()
@@ -97,6 +109,7 @@ def create_collaboration(
 
 @router.get("/{collaboration_id}", response_model=CollaborationRead)
 def get_collaboration(collaboration_id: int, db: Session = Depends(get_db)) -> dict:
+    archive_expired_collaborations(db)
     collaboration = (
         db.query(Collaboration)
         .options(joinedload(Collaboration.owner))
@@ -136,6 +149,7 @@ async def update_collaboration(
         setattr(collaboration, field, value)
     if required_skills is not None:
         set_collaboration_required_skills(db, collaboration, required_skills)
+    apply_post_lifecycle(collaboration)
 
     db.commit()
     db.refresh(collaboration)
@@ -166,11 +180,14 @@ def apply_to_collaboration(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Application:
+    archive_expired_collaborations(db)
     collaboration = db.get(Collaboration, collaboration_id)
     if collaboration is None:
         raise HTTPException(status_code=404, detail="Collaboration not found")
     if collaboration.owner_id == current_user.id:
         raise HTTPException(status_code=400, detail="Owners cannot apply to their own collaboration")
+    if collaboration.post_status == POST_STATUS_ARCHIVED:
+        raise HTTPException(status_code=400, detail="Archived collaborations no longer accept applications")
     if accepted_count(db, collaboration_id) >= collaboration.slots:
         raise HTTPException(status_code=400, detail="Collaboration is full")
 
@@ -203,6 +220,7 @@ def list_applications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Application]:
+    archive_expired_collaborations(db)
     collaboration = db.get(Collaboration, collaboration_id)
     if collaboration is None:
         raise HTTPException(status_code=404, detail="Collaboration not found")
@@ -226,6 +244,7 @@ async def decide_application(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Application:
+    archive_expired_collaborations(db)
     collaboration = (
         db.query(Collaboration)
         .filter(Collaboration.id == collaboration_id)
