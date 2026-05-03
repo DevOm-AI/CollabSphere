@@ -11,6 +11,7 @@ CollabSphere is a full-stack collaboration platform for college students. Studen
 - Optional invite code on signup. Matching college invite codes mark users as college verified.
 - Normalized skills with many-to-many joins for users and collaboration required skills.
 - Skill-based collaboration filtering, including minimum match counts.
+- AI-powered team match scoring with Groq-generated personalized match reasons for strong matches.
 - Collaboration lifecycle with automatic archiving after `event_datetime` passes.
 - Archived collaborations stop accepting applications.
 - Profile portfolio timeline built from archived collaborations a student created or joined as an accepted collaborator.
@@ -20,6 +21,7 @@ CollabSphere is a full-stack collaboration platform for college students. Studen
 
 - Backend: FastAPI, SQLAlchemy, PostgreSQL, JWT auth, SlowAPI
 - Frontend: React with Vite
+- AI: Groq Chat Completions with `llama3-8b-8192`
 - Realtime: FastAPI WebSockets
 - Database migrations: lightweight startup migrations in `backend/app/main.py`
 
@@ -106,10 +108,12 @@ pip install --force-reinstall bcrypt==4.0.1
 copy .env.example .env
 ```
 
-Update `JWT_SECRET_KEY` in `backend/.env`. The default Docker database URL is:
+Update `JWT_SECRET_KEY` and `GROQ_API_KEY` in `backend/.env`. The default Docker database URL is:
 
 ```text
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5433/collabsphere
+GROQ_API_KEY=replace-with-groq-api-key
+GROQ_MODEL=llama3-8b-8192
 ```
 
 If you are using a local PostgreSQL service instead of Docker, use port `5432` or your local server port.
@@ -218,6 +222,8 @@ Feed query defaults:
 
 Use `scope=global` to remove the college filter and `post_status=Archived` or `post_status=All` to include archived posts.
 
+Authenticated collaboration responses include `match_score` and `match_reason`. `match_score` is computed from normalized skill overlap. If the score is at least 60, the backend asks Groq for a one-line personalized reason; otherwise `match_reason` is `null`.
+
 ### Realtime
 
 - `WS /ws/collaborations/{id}`
@@ -241,7 +247,7 @@ Clients receive slot-count payloads when application decisions change.
 ## UI Sections
 
 - Auth: login/signup, searchable college dropdown, optional invite code.
-- Open Posts: My College and Global feed toggle, search, skill match filter, pagination, create-post modal.
+- Open Posts: My College and Global feed toggle, search, skill match filter, match score badges, pagination, create-post modal.
 - Collaboration Detail: event details, required skills, application form, owner applicant review, archived badge/state.
 - Student Profile: profile summary, college, Campus Rep badge, skill counts, completed portfolio count, achievement timeline, editable profile form.
 - Collaborations: application history with accepted/rejected/pending and archived state.

@@ -45,7 +45,6 @@ def list_collaborations(
         joinedload(Collaboration.owner),
         selectinload(Collaboration.required_skill_records),
     )
-    matched_skill_ids: set[int] = set()
 
     if post_status != "All":
         query = query.filter(Collaboration.post_status == post_status)
@@ -60,8 +59,8 @@ def list_collaborations(
         if current_user is None:
             raise HTTPException(status_code=401, detail="Skill matching requires authentication")
 
-        matched_skill_ids = {skill.id for skill in current_user.skill_records}
-        if not matched_skill_ids:
+        user_skill_ids = {skill.id for skill in current_user.skill_records}
+        if not user_skill_ids:
             return []
 
         skill_matches = (
@@ -69,7 +68,7 @@ def list_collaborations(
                 collaboration_required_skills.c.collaboration_id,
                 func.count(func.distinct(collaboration_required_skills.c.skill_id)).label("skill_match_count"),
             )
-            .filter(collaboration_required_skills.c.skill_id.in_(matched_skill_ids))
+            .filter(collaboration_required_skills.c.skill_id.in_(user_skill_ids))
             .group_by(collaboration_required_skills.c.collaboration_id)
             .having(func.count(func.distinct(collaboration_required_skills.c.skill_id)) >= min_skill_matches)
             .subquery()
@@ -82,14 +81,7 @@ def list_collaborations(
         query = query.order_by(Collaboration.created_at.desc())
 
     collaborations = query.offset(offset).limit(limit).all()
-    return [
-        serialize_collaboration(
-            db,
-            collaboration,
-            skill_match_count=len({skill.id for skill in collaboration.required_skill_records} & matched_skill_ids),
-        )
-        for collaboration in collaborations
-    ]
+    return [serialize_collaboration(db, collaboration, current_user=current_user) for collaboration in collaborations]
 
 
 @router.post("", response_model=CollaborationRead, status_code=status.HTTP_201_CREATED)
@@ -111,21 +103,25 @@ def create_collaboration(
     set_collaboration_required_skills(db, collaboration, payload.required_skills)
     db.commit()
     db.refresh(collaboration)
-    return serialize_collaboration(db, collaboration)
+    return serialize_collaboration(db, collaboration, current_user=current_user)
 
 
 @router.get("/{collaboration_id}", response_model=CollaborationRead)
-def get_collaboration(collaboration_id: int, db: Session = Depends(get_db)) -> dict:
+def get_collaboration(
+    collaboration_id: int,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> dict:
     archive_expired_collaborations(db)
     collaboration = (
         db.query(Collaboration)
-        .options(joinedload(Collaboration.owner))
+        .options(joinedload(Collaboration.owner), selectinload(Collaboration.required_skill_records))
         .filter(Collaboration.id == collaboration_id)
         .first()
     )
     if collaboration is None:
         raise HTTPException(status_code=404, detail="Collaboration not found")
-    return serialize_collaboration(db, collaboration)
+    return serialize_collaboration(db, collaboration, current_user=current_user)
 
 
 @router.put("/{collaboration_id}", response_model=CollaborationRead)
@@ -161,7 +157,7 @@ async def update_collaboration(
     db.commit()
     db.refresh(collaboration)
     await manager.broadcast_slots(collaboration_id, slot_payload(db, collaboration))
-    return serialize_collaboration(db, collaboration)
+    return serialize_collaboration(db, collaboration, current_user=current_user)
 
 
 @router.delete("/{collaboration_id}", status_code=status.HTTP_204_NO_CONTENT)

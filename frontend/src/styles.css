@@ -482,6 +482,22 @@ h3 {
   background: rgba(255, 255, 255, 0.62);
 }
 
+.row-meta,
+.match-wrap {
+  display: grid;
+  justify-items: end;
+  gap: 0.36rem;
+}
+
+.match-wrap small {
+  max-width: 230px;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: right;
+}
+
 .collaboration-row strong,
 .collaboration-row small,
 .applicant small {
@@ -528,6 +544,28 @@ h3 {
 .badge.archived {
   background: #ede9fe;
   color: #5b21b6;
+}
+
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  font-size: 0.78rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.match-badge.high {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.match-badge.medium {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .muted-badge {
@@ -1034,6 +1072,15 @@ h3 {
 
   .collaboration-row {
     grid-template-columns: 1fr;
+  }
+
+  .row-meta,
+  .match-wrap {
+    justify-items: start;
+  }
+
+  .match-wrap small {
+    text-align: left;
   }
 
   .filter-row {

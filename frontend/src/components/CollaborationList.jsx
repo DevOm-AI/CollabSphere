@@ -5,10 +5,19 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
     return { className: "badge", label: `${collaboration.slots_available} Slots Available` };
   }
 
+  function matchBadge(collaboration) {
+    if (typeof collaboration.match_score !== "number" || collaboration.match_score < 60) return null;
+    if (collaboration.match_score >= 80) {
+      return { className: "match-badge high", label: `${collaboration.match_score}% match` };
+    }
+    return { className: "match-badge medium", label: `${collaboration.match_score}% match` };
+  }
+
   return (
     <section className="list">
       {collaborations.map((collaboration) => {
         const badge = statusBadge(collaboration);
+        const match = matchBadge(collaboration);
         return (
           <button
             className={`collaboration-row ${selectedId === collaboration.id ? "selected" : ""}`}
@@ -30,7 +39,15 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
               </small>
               {collaboration.skill_match_count > 0 && <small>{collaboration.skill_match_count} skill matches</small>}
             </span>
-            <span className={badge.className}>{badge.label}</span>
+            <span className="row-meta">
+              {match && (
+                <span className="match-wrap">
+                  <span className={match.className}>{match.label}</span>
+                  {collaboration.match_reason && <small>{collaboration.match_reason}</small>}
+                </span>
+              )}
+              <span className={badge.className}>{badge.label}</span>
+            </span>
           </button>
         );
       })}

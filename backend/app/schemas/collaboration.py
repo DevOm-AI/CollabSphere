@@ -39,6 +39,8 @@ class CollaborationRead(BaseModel):
     slots_available: int
     is_full: bool
     skill_match_count: int = 0
+    match_score: int | None = None
+    match_reason: str | None = None
     owner: UserRead
     created_at: datetime
 

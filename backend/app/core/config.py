@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
     cors_origins: list[str] = ["http://localhost:5173"]
+    groq_api_key: str | None = None
+    groq_model: str = "llama3-8b-8192"
+    groq_timeout_seconds: int = 8
 
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8")
 
