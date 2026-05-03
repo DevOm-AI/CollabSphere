@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 import { api } from "../api/client.js";
 import { parseList } from "../utils/lists.js";
@@ -41,17 +42,17 @@ export default function CollaborationForm({ onCreated }) {
   }
 
   return (
-    <form className="post-form stack" onSubmit={submit}>
+    <motion.form className="post-form stack" onSubmit={submit} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <div>
         <p className="eyebrow">New Collaboration</p>
         <h2>Create a post</h2>
       </div>
       <label>
-        Title
+        <span>Title</span>
         <input name="title" value={form.title} onChange={updateField} required />
       </label>
       <label>
-        Post type
+        <span>Post type</span>
         <select name="post_type" value={form.post_type} onChange={updateField}>
           {postTypes.map((type) => (
             <option key={type} value={type}>
@@ -61,11 +62,11 @@ export default function CollaborationForm({ onCreated }) {
         </select>
       </label>
       <label>
-        Description
+        <span>Description</span>
         <textarea name="description" value={form.description} onChange={updateField} required />
       </label>
       <label>
-        Required skills
+        <span>Required skills</span>
         <input
           name="required_skills"
           value={form.required_skills}
@@ -74,17 +75,17 @@ export default function CollaborationForm({ onCreated }) {
         />
       </label>
       <label>
-        Slots
+        <span>Slots</span>
         <input name="slots" type="number" min="1" max="50" value={form.slots} onChange={updateField} required />
       </label>
       <label>
-        Event date and time
+        <span>Event date and time</span>
         <input name="event_datetime" type="datetime-local" value={form.event_datetime} onChange={updateField} />
       </label>
       {error && <p className="error">{error}</p>}
       <button className="primary" type="submit">
         Publish
       </button>
-    </form>
+    </motion.form>
   );
 }

@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 export default function CollaborationList({ collaborations, selectedId, onSelect }) {
   function statusBadge(collaboration) {
     if (collaboration.is_archived) return { className: "badge archived", label: "Archived" };
@@ -15,20 +17,27 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
 
   return (
     <section className="list">
-      {collaborations.map((collaboration) => {
+      {collaborations.map((collaboration, index) => {
         const badge = statusBadge(collaboration);
         const match = matchBadge(collaboration);
         return (
-          <button
-            className={`collaboration-row ${selectedId === collaboration.id ? "selected" : ""}`}
+          <motion.button
+            className={`collaboration-row ${selectedId === collaboration.id ? "selected" : ""} ${collaboration.is_archived ? "archived-card" : ""}`}
             key={collaboration.id}
             onClick={() => onSelect(collaboration.id)}
             type="button"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -4 }}
+            transition={{ delay: index * 0.05 }}
           >
             <span>
               <strong>{collaboration.title}</strong>
-              <small>
-                {collaboration.post_type} by {collaboration.owner.name}
+              <small className="card-line">
+                <span className={`post-type-chip type-${collaboration.post_type.toLowerCase()}`}>
+                  {collaboration.post_type}
+                </span>
+                <span>by {collaboration.owner.name}</span>
               </small>
               <small>
                 {collaboration.event_datetime
@@ -38,6 +47,11 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
                   : "Date not set"}
               </small>
               {collaboration.skill_match_count > 0 && <small>{collaboration.skill_match_count} skill matches</small>}
+              <span className="tags tiny card-skills">
+                {collaboration.required_skills.slice(0, 4).map((skill) => (
+                  <span key={skill}>{skill}</span>
+                ))}
+              </span>
             </span>
             <span className="row-meta">
               {match && (
@@ -48,10 +62,10 @@ export default function CollaborationList({ collaborations, selectedId, onSelect
               )}
               <span className={badge.className}>{badge.label}</span>
             </span>
-          </button>
+          </motion.button>
         );
       })}
-      {collaborations.length === 0 && <p className="muted">No collaborations yet.</p>}
+      {collaborations.length === 0 && <p className="muted empty-illustration">No collaborations yet.</p>}
     </section>
   );
 }

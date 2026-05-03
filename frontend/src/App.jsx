@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 
 import { api } from "./api/client.js";
 import AuthPanel from "./components/AuthPanel.jsx";
@@ -33,19 +34,23 @@ export default function App() {
   const [activeSection, setActiveSection] = useState("posts");
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [feedScope, setFeedScope] = useState("college");
   const [matchMySkills, setMatchMySkills] = useState(false);
   const [minSkillMatches, setMinSkillMatches] = useState(2);
+  const [activePostType, setActivePostType] = useState("All");
+  const [activeSkill, setActiveSkill] = useState("All");
   const [error, setError] = useState("");
+  const { scrollY } = useScroll();
 
-  useEffect(() => {
-    if (!user) return;
-    refreshCollaborations();
-  }, [user, feedScope, matchMySkills, minSkillMatches]);
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious() ?? 0;
+    setNavHidden(latest > previous && latest > 90);
+  });
 
-  async function refreshCollaborations() {
+  const refreshCollaborations = useCallback(async () => {
     try {
       const [posts, joined, portfolioData] = await Promise.all([
         api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0, scope: feedScope, matchMySkills, minSkillMatches }),
@@ -61,7 +66,18 @@ export default function App() {
     } catch (err) {
       setError(err.message);
     }
-  }
+  }, [feedScope, matchMySkills, minSkillMatches]);
+
+  useEffect(() => {
+    if (!user) return;
+    refreshCollaborations();
+  }, [user, refreshCollaborations]);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 4200);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   async function loadMorePosts() {
     try {
@@ -80,7 +96,7 @@ export default function App() {
     }
   }
 
-  if (loading) return <main className="loading">Loading CollabSphere...</main>;
+  if (loading) return <main className="loading"><span className="skeleton-line" /></main>;
   if (!user) return <AuthPanel />;
 
   function addCollaboration(created) {
@@ -109,15 +125,25 @@ export default function App() {
       ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(post.event_datetime))
       : "";
     const haystack = `${post.title} ${post.owner.name} ${post.post_type} ${dateText} ${post.required_skills.join(" ")}`.toLowerCase();
-    return haystack.includes(searchQuery.toLowerCase().trim());
+    const matchesSearch = haystack.includes(searchQuery.toLowerCase().trim());
+    const matchesType = activePostType === "All" || post.post_type === activePostType;
+    const matchesSkill = activeSkill === "All" || post.required_skills.includes(activeSkill);
+    return matchesSearch && matchesType && matchesSkill;
   });
+  const postTypeFilters = ["All", ...new Set(collaborations.map((item) => item.post_type))];
+  const skillFilters = ["All", ...new Set(collaborations.flatMap((item) => item.required_skills))].slice(0, 10);
   const selectedPost = collaborations.find((item) => item.id === selectedId);
   const selectedApplication = joinedCollaborations.find((item) => item.collaboration.id === selectedPost?.id);
   const completedCount = portfolio.items.length;
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <motion.header
+        className={`topbar ${navHidden ? "nav-hidden" : ""}`}
+        initial={{ y: -28, opacity: 0 }}
+        animate={{ y: navHidden ? -110 : 0, opacity: navHidden ? 0 : 1 }}
+        transition={{ duration: 0.24 }}
+      >
         <div className="brand-cluster">
           <button className="hamburger" type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Menu">
             <span />
@@ -135,7 +161,7 @@ export default function App() {
             <strong>{user.name}</strong>
           </button>
           {accountOpen && (
-            <div className="account-menu">
+            <motion.div className="account-menu" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
               <p>{user.email}</p>
               <button type="button" onClick={() => switchSection("profile")}>
                 View Profile
@@ -146,10 +172,10 @@ export default function App() {
               <button className="danger" type="button" onClick={logout}>
                 Logout
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
-      </header>
+      </motion.header>
 
       <aside className={`side-menu ${menuOpen ? "open" : ""}`}>
         <div className="menu-card">
@@ -171,18 +197,37 @@ export default function App() {
         </div>
       </aside>
 
-      {error && <p className="error">{error}</p>}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            className="toast error"
+            initial={{ opacity: 0, x: 28 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 28 }}
+          >
+            {error}
+            <span />
+          </motion.p>
+        )}
+      </AnimatePresence>
 
+      <AnimatePresence mode="wait">
       {activeSection === "posts" && (
-        <section className="section-grid open-posts-grid">
+        <motion.section
+          className="section-grid open-posts-grid"
+          key="posts"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+        >
           <div className="glass-panel post-index stack">
             <div className="section-head">
               <div>
                 <p className="eyebrow">Live Board</p>
                 <h2>Open Posts</h2>
               </div>
-              <button className="primary floating-create" type="button" onClick={() => setCreateOpen(true)}>
-                Create Post
+              <button className="primary floating-create fab" type="button" onClick={() => setCreateOpen(true)} aria-label="New post">
+                +
               </button>
             </div>
             <div className="segmented scope-toggle">
@@ -207,6 +252,35 @@ export default function App() {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search title, creator, skill, type, or date"
               />
+              {searchQuery && (
+                <button className="clear-search" type="button" onClick={() => setSearchQuery("")} aria-label="Clear search">
+                  x
+                </button>
+              )}
+            </div>
+            <div className="chip-scroller">
+              {postTypeFilters.map((type) => (
+                <button
+                  className={`filter-chip ${activePostType === type ? "active" : ""}`}
+                  key={type}
+                  type="button"
+                  onClick={() => setActivePostType(type)}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <div className="chip-scroller">
+              {skillFilters.map((skill) => (
+                <button
+                  className={`filter-chip skill ${activeSkill === skill ? "active" : ""}`}
+                  key={skill}
+                  type="button"
+                  onClick={() => setActiveSkill(skill)}
+                >
+                  {skill}
+                </button>
+              ))}
             </div>
             <div className="filter-row">
               <label className="toggle-row skill-match-toggle">
@@ -243,12 +317,18 @@ export default function App() {
             onDeleted={handleDeleted}
             onApplicationChanged={refreshCollaborations}
           />
-        </section>
+        </motion.section>
       )}
 
       {activeSection === "profile" && (
-        <section className="profile-page">
-          <div className="profile-visual glass-panel">
+        <motion.section
+          className="profile-page"
+          key="profile"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+        >
+          <motion.div className="profile-visual glass-panel" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
             <div className="profile-ring">
               <span>{user.name.charAt(0).toUpperCase()}</span>
             </div>
@@ -271,7 +351,7 @@ export default function App() {
               </div>
             </div>
             <p className="achievement-line">{portfolio.headline}</p>
-          </div>
+          </motion.div>
           <div className="profile-main stack">
             <section className="panel stack portfolio-panel">
               <div className="section-head">
@@ -290,8 +370,15 @@ export default function App() {
                 ))}
               </div>
               <div className="timeline">
-                {portfolio.items.map((item) => (
-                  <article className="timeline-item" key={`${item.role}-${item.collaboration.id}`}>
+                {portfolio.items.map((item, index) => (
+                  <motion.article
+                    className="timeline-item"
+                    key={`${item.role}-${item.collaboration.id}`}
+                    initial={{ opacity: 0, x: index % 2 === 0 ? -32 : 32 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, margin: "-80px" }}
+                    transition={{ delay: 0.04 * index }}
+                  >
                     <div className="timeline-dot" />
                     <div>
                       <span className="history-status">{item.role}</span>
@@ -306,18 +393,24 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                  </article>
+                  </motion.article>
                 ))}
                 {portfolio.items.length === 0 && <p className="muted">Archived collaborations will appear here after event dates pass.</p>}
               </div>
             </section>
             <ProfileForm />
           </div>
-        </section>
+        </motion.section>
       )}
 
       {activeSection === "collaborations" && (
-        <section className="glass-panel stack collaborations-page">
+        <motion.section
+          className="glass-panel stack collaborations-page"
+          key="collaborations"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+        >
           <div className="section-head">
             <div>
               <p className="eyebrow">Your History</p>
@@ -326,8 +419,14 @@ export default function App() {
             <span>{joinedCollaborations.length} applications</span>
           </div>
           <div className="history-grid">
-            {joinedCollaborations.map((item) => (
-              <article className={`history-card ${item.status}`} key={item.application_id}>
+            {joinedCollaborations.map((item, index) => (
+              <motion.article
+                className={`history-card ${item.status} ${item.collaboration.is_archived ? "archived-card" : ""}`}
+                key={item.application_id}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
                 <span className="history-status">{item.status}</span>
                 {item.collaboration.is_archived && <span className="history-status archived-status">archived</span>}
                 <h3>{item.collaboration.title}</h3>
@@ -338,18 +437,28 @@ export default function App() {
                     <span key={skill}>{skill}</span>
                   ))}
                 </div>
-              </article>
+              </motion.article>
             ))}
             {joinedCollaborations.length === 0 && <p className="muted">You have not applied to any collaborations yet.</p>}
           </div>
-        </section>
+        </motion.section>
       )}
 
-      {activeSection === "settings" && <SettingsPage />}
+      {activeSection === "settings" && (
+        <motion.section key="settings" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
+          <SettingsPage />
+        </motion.section>
+      )}
+      </AnimatePresence>
 
       {createOpen && (
         <div className="modal-backdrop" onClick={() => setCreateOpen(false)}>
-          <div className="modal-sheet" onClick={(event) => event.stopPropagation()}>
+          <motion.div
+            className="modal-sheet"
+            onClick={(event) => event.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+          >
             <div className="section-head">
               <div>
                 <p className="eyebrow">Create</p>
@@ -360,7 +469,7 @@ export default function App() {
               </button>
             </div>
             <CollaborationForm onCreated={addCollaboration} />
-          </div>
+          </motion.div>
         </div>
       )}
     </main>

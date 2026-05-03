@@ -19,7 +19,10 @@ export default [
       globals: {
         document: "readonly",
         fetch: "readonly",
+        URLSearchParams: "readonly",
         localStorage: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
         WebSocket: "readonly",
       },
       parserOptions: {

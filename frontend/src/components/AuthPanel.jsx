@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { api } from "../api/client.js";
 import { useAuth } from "../state/AuthContext.jsx";
@@ -47,15 +48,31 @@ export default function AuthPanel() {
 
   return (
     <main className="auth-shell">
-      <section className="auth-copy">
+      <motion.div
+        className="auth-orb"
+        animate={{ x: [0, 36, -18, 0], y: [0, -24, 20, 0], scale: [1, 1.08, 0.96, 1] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.section className="auth-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          className="logo-mark"
+          animate={{ rotate: [0, 8, -8, 0], boxShadow: ["0 0 18px rgba(124,58,237,.35)", "0 0 34px rgba(6,182,212,.45)", "0 0 18px rgba(124,58,237,.35)"] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
         <p className="eyebrow">CollabSphere</p>
         <h1>Find the right students for the work worth building.</h1>
         <p>
           Create project, hackathon, and research collaborations, review applicants, and keep slots
           accurate as teammates join.
         </p>
-      </section>
-      <form className="panel auth-panel" onSubmit={submit}>
+      </motion.section>
+      <motion.form
+        className="panel auth-panel"
+        onSubmit={submit}
+        initial={{ opacity: 0, y: 28, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.42 }}
+      >
         <div className="segmented">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
             Login
@@ -64,14 +81,20 @@ export default function AuthPanel() {
             Signup
           </button>
         </div>
+        <AnimatePresence initial={false}>
         {mode === "signup" && (
-          <>
+          <motion.div
+            className="signup-fields"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
             <label>
-              Name
+              <span>Name</span>
               <input name="name" value={form.name} onChange={updateField} required />
             </label>
             <label>
-              College
+              <span>College</span>
               <input
                 list="college-options"
                 name="college"
@@ -87,7 +110,7 @@ export default function AuthPanel() {
               </datalist>
             </label>
             <label>
-              Invite code
+              <span>Invite code</span>
               <input
                 name="invite_code"
                 value={form.invite_code}
@@ -95,14 +118,15 @@ export default function AuthPanel() {
                 placeholder="Optional campus code"
               />
             </label>
-          </>
+          </motion.div>
         )}
+        </AnimatePresence>
         <label>
-          Email
+          <span>Email</span>
           <input name="email" type="email" value={form.email} onChange={updateField} required />
         </label>
         <label>
-          Password
+          <span>Password</span>
           <input
             name="password"
             type="password"
@@ -116,7 +140,7 @@ export default function AuthPanel() {
         <button className="primary" type="submit">
           {mode === "signup" ? "Create Account" : "Login"}
         </button>
-      </form>
+      </motion.form>
     </main>
   );
 }

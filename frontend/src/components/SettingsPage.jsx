@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 import { api } from "../api/client.js";
 import { useAuth } from "../state/AuthContext.jsx";
@@ -54,17 +55,17 @@ export default function SettingsPage() {
 
   return (
     <section className="settings-grid">
-      <form className="glass-panel stack settings-card" onSubmit={saveSettings}>
+      <motion.form className="glass-panel stack settings-card" onSubmit={saveSettings} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <div>
           <p className="eyebrow">Preferences</p>
           <h2>Student settings</h2>
         </div>
         <label>
-          Department
+          <span>Department</span>
           <input name="department" value={settings.department} onChange={updateSetting} placeholder="Computer Science" />
         </label>
         <label>
-          Graduation year
+          <span>Graduation year</span>
           <input
             name="graduation_year"
             type="number"
@@ -75,7 +76,7 @@ export default function SettingsPage() {
           />
         </label>
         <label>
-          Portfolio link
+          <span>Portfolio link</span>
           <input name="portfolio_url" value={settings.portfolio_url} onChange={updateSetting} placeholder="https://..." />
         </label>
         <label className="toggle-row">
@@ -91,15 +92,21 @@ export default function SettingsPage() {
         <button className="primary" type="submit">
           Save Settings
         </button>
-      </form>
+      </motion.form>
 
-      <form className="glass-panel stack settings-card password-card" onSubmit={changePassword}>
+      <motion.form
+        className="glass-panel stack settings-card password-card"
+        onSubmit={changePassword}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+      >
         <div>
           <p className="eyebrow">Security</p>
           <h2>Change password</h2>
         </div>
         <label>
-          Current password
+          <span>Current password</span>
           <input
             name="current_password"
             type="password"
@@ -109,7 +116,7 @@ export default function SettingsPage() {
           />
         </label>
         <label>
-          New password
+          <span>New password</span>
           <input
             name="new_password"
             type="password"
@@ -125,7 +132,7 @@ export default function SettingsPage() {
         <button className="primary" type="submit">
           Update Password
         </button>
-      </form>
+      </motion.form>
     </section>
   );
 }

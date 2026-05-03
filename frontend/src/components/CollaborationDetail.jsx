@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 import { api, collaborationSocketUrl } from "../api/client.js";
 import { useAuth } from "../state/AuthContext.jsx";
@@ -72,6 +73,7 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
 
   const isOwner = collaboration.owner.id === user.id;
   const isArchived = collaboration.is_archived;
+  const messageLength = message.length;
 
   function beginEdit() {
     setEditForm({
@@ -153,7 +155,13 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
   }
 
   return (
-    <section className="glass-panel detail stack pop-in">
+    <motion.section
+      className="glass-panel detail stack"
+      initial={{ opacity: 0, x: 34 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.28 }}
+    >
+      {isArchived && <div className="archived-banner">Archived collaboration. Applications and owner actions are closed.</div>}
       <div className="detail-head">
         <div>
           <p className="eyebrow">{isArchived ? "Archived Post" : "Open Post"}</p>
@@ -224,6 +232,23 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
             <span>{collaboration.post_type}</span>
             <strong>{formatDateTime(collaboration.event_datetime)}</strong>
           </div>
+          {typeof collaboration.match_score === "number" && (
+            <div className="match-panel">
+              <div
+                className="score-ring"
+                style={{ "--score": `${collaboration.match_score * 3.6}deg` }}
+                aria-label={`${collaboration.match_score}% match`}
+              >
+                <strong>{collaboration.match_score}</strong>
+                <span>%</span>
+              </div>
+              <div>
+                <p className="eyebrow">Team Match</p>
+                <h3>{collaboration.match_score >= 80 ? "Strong alignment" : "Promising fit"}</h3>
+                {collaboration.match_reason && <p className="match-callout">{collaboration.match_reason}</p>}
+              </div>
+            </div>
+          )}
           <p className="description">{collaboration.description}</p>
           <div className="tags">
             {collaboration.required_skills.map((skill) => (
@@ -233,7 +258,7 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
         </>
       )}
 
-      {isOwner && !isEditing && (
+      {isOwner && !isEditing && !isArchived && (
         <div className="inline-actions">
           <button type="button" onClick={beginEdit}>
             Modify Post
@@ -244,7 +269,7 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
         </div>
       )}
 
-      {!isOwner && (
+      {!isOwner && !isArchived && (
         <form className="stack compact apply-card" onSubmit={apply}>
           <h3>Apply to join</h3>
           <label>
@@ -258,10 +283,12 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
           <label>
             Message
             <textarea
+              maxLength="1000"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder="Tell the creator how you can help"
             />
+            <small className="char-count">{messageLength}/1000</small>
           </label>
           <button
             className={appliedStatus === "accepted" ? "applied-button" : "primary pulse-action"}
@@ -295,21 +322,27 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
                 {application.status === "accepted" && (
                   <>
                     <span className="status-mark accepted-mark">Accepted</span>
-                    <button className="kick-button" type="button" onClick={() => kick(application.id)}>
-                      Kick
-                    </button>
+                    {!isArchived && (
+                      <button className="kick-button" type="button" onClick={() => kick(application.id)}>
+                        Kick
+                      </button>
+                    )}
                   </>
                 )}
                 {application.status === "rejected" && <span className="status-mark rejected-mark">Rejected</span>}
                 {application.status === "pending" && (
                   <>
                     <span className="badge muted-badge">pending</span>
-                    <button type="button" onClick={() => decide(application.id, "accepted")}>
-                      Accept
-                    </button>
-                    <button type="button" onClick={() => decide(application.id, "rejected")}>
-                      Reject
-                    </button>
+                    {!isArchived && (
+                      <>
+                        <button type="button" onClick={() => decide(application.id, "accepted")}>
+                          Accept
+                        </button>
+                        <button type="button" onClick={() => decide(application.id, "rejected")}>
+                          Reject
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -318,6 +351,6 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
           {applications.length === 0 && <p className="muted">No applicants yet.</p>}
         </div>
       )}
-    </section>
+    </motion.section>
   );
 }
