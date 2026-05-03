@@ -15,7 +15,6 @@ from app.schemas.collaboration import (
     CollaborationCreate,
     CollaborationRead,
     CollaborationUpdate,
-    JoinedCollaborationRead,
 )
 
 router = APIRouter(prefix="/collaborations", tags=["collaborations"])
@@ -51,32 +50,6 @@ def create_collaboration(
     db.commit()
     db.refresh(collaboration)
     return serialize_collaboration(db, collaboration)
-
-
-@router.get("/me/joined", response_model=list[JoinedCollaborationRead])
-def my_joined_collaborations(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[dict]:
-    applications = (
-        db.query(Application)
-        .options(
-            joinedload(Application.collaboration).joinedload(Collaboration.owner),
-            joinedload(Application.applicant),
-        )
-        .filter(Application.applicant_id == current_user.id)
-        .order_by(Application.created_at.desc())
-        .all()
-    )
-    return [
-        {
-            "application_id": application.id,
-            "status": application.status,
-            "offered_skills": application.offered_skills,
-            "collaboration": serialize_collaboration(db, application.collaboration),
-        }
-        for application in applications
-    ]
 
 
 @router.get("/{collaboration_id}", response_model=CollaborationRead)

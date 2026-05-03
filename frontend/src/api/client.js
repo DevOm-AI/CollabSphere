@@ -42,7 +42,7 @@ export const api = {
   apply: (id, payload) =>
     request(`/collaborations/${id}/apply`, { method: "POST", body: JSON.stringify(payload) }),
   listApplications: (id) => request(`/collaborations/${id}/applications`),
-  myCollaborations: () => request("/collaborations/me/joined"),
+  myCollaborations: () => request("/users/me/collaborations"),
   decideApplication: (collaborationId, applicationId, status) =>
     request(`/collaborations/${collaborationId}/applications/${applicationId}`, {
       method: "PATCH",

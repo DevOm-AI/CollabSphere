@@ -147,7 +147,7 @@ Open `http://localhost:5173`.
 - `POST /api/collaborations/{id}/apply`
 - `GET /api/collaborations/{id}/applications`
 - `PATCH /api/collaborations/{id}/applications/{application_id}`
-- `GET /api/collaborations/me/joined`
+- `GET /api/users/me/collaborations`
 - `WS /ws/collaborations/{id}`
 
 ## Usage Flow
