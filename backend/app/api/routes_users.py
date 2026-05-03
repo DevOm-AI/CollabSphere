@@ -6,6 +6,7 @@ from app.api.collaboration_lifecycle import POST_STATUS_ARCHIVED, archive_expire
 from app.api.deps import get_current_user
 from app.api.skills import set_user_skills
 from app.api.utils import serialize_collaboration
+from app.core.colleges import canonical_college_name
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password
 from app.models.application import Application, ApplicationStatus
@@ -31,10 +32,21 @@ def update_me(
 ) -> User:
     update_data = payload.model_dump(exclude_unset=True)
     skills = update_data.pop("skills", None)
+    college = update_data.pop("college", None)
     for field, value in update_data.items():
         setattr(current_user, field, value)
     if skills is not None:
         set_user_skills(db, current_user, skills)
+    if college is not None:
+        if college == "":
+            current_user.college = None
+        else:
+            normalized_college = canonical_college_name(college)
+            if normalized_college is None:
+                raise HTTPException(status_code=400, detail="Select a valid college")
+            current_user.college = normalized_college
+        current_user.college_verified = False
+        current_user.campus_rep = False
     db.commit()
     db.refresh(current_user)
     return current_user

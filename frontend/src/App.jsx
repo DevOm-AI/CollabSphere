@@ -35,6 +35,7 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [feedScope, setFeedScope] = useState("college");
   const [matchMySkills, setMatchMySkills] = useState(false);
   const [minSkillMatches, setMinSkillMatches] = useState(2);
   const [error, setError] = useState("");
@@ -42,12 +43,12 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     refreshCollaborations();
-  }, [user, matchMySkills, minSkillMatches]);
+  }, [user, feedScope, matchMySkills, minSkillMatches]);
 
   async function refreshCollaborations() {
     try {
       const [posts, joined, portfolioData] = await Promise.all([
-        api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0, matchMySkills, minSkillMatches }),
+        api.listCollaborations({ limit: POSTS_PAGE_SIZE, offset: 0, scope: feedScope, matchMySkills, minSkillMatches }),
         api.myCollaborations(),
         api.myPortfolio(),
       ]);
@@ -67,6 +68,7 @@ export default function App() {
       const nextPosts = await api.listCollaborations({
         limit: POSTS_PAGE_SIZE,
         offset: postsOffset,
+        scope: feedScope,
         matchMySkills,
         minSkillMatches,
       });
@@ -183,6 +185,22 @@ export default function App() {
                 Create Post
               </button>
             </div>
+            <div className="segmented scope-toggle">
+              <button
+                className={feedScope === "college" ? "active" : ""}
+                type="button"
+                onClick={() => setFeedScope("college")}
+              >
+                My College
+              </button>
+              <button
+                className={feedScope === "global" ? "active" : ""}
+                type="button"
+                onClick={() => setFeedScope("global")}
+              >
+                Global
+              </button>
+            </div>
             <div className="search-shell">
               <input
                 value={searchQuery}
@@ -235,7 +253,9 @@ export default function App() {
               <span>{user.name.charAt(0).toUpperCase()}</span>
             </div>
             <h2>{user.name}</h2>
+            {user.campus_rep && <span className="campus-rep-badge">Campus Rep</span>}
             <p>{user.email}</p>
+            {user.college && <p className="muted">{user.college}</p>}
             <div className="profile-stats">
               <div>
                 <strong>{user.skills.length}</strong>

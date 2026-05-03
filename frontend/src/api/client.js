@@ -29,12 +29,16 @@ async function request(path, options = {}) {
 export const api = {
   signup: (payload) => request("/auth/signup", { method: "POST", body: JSON.stringify(payload) }),
   login: (payload) => request("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  listColleges: ({ q = "", limit = 50 } = {}) => {
+    const params = new URLSearchParams({ q, limit });
+    return request(`/colleges?${params.toString()}`);
+  },
   me: () => request("/users/me"),
   updateMe: (payload) => request("/users/me", { method: "PUT", body: JSON.stringify(payload) }),
   myPortfolio: () => request("/users/me/portfolio"),
   changePassword: (payload) => request("/users/me/password", { method: "PUT", body: JSON.stringify(payload) }),
-  listCollaborations: ({ limit = 20, offset = 0, matchMySkills = false, minSkillMatches = 1 } = {}) => {
-    const params = new URLSearchParams({ limit, offset });
+  listCollaborations: ({ limit = 20, offset = 0, scope = "college", matchMySkills = false, minSkillMatches = 1 } = {}) => {
+    const params = new URLSearchParams({ limit, offset, scope });
     if (matchMySkills) {
       params.set("match_my_skills", "true");
       params.set("min_skill_matches", minSkillMatches);
@@ -51,6 +55,7 @@ export const api = {
     request(`/collaborations/${id}/apply`, { method: "POST", body: JSON.stringify(payload) }),
   listApplications: (id) => request(`/collaborations/${id}/applications`),
   myCollaborations: () => request("/users/me/collaborations"),
+  generateInvite: () => request("/invite/generate", { method: "POST" }),
   decideApplication: (collaborationId, applicationId, status) =>
     request(`/collaborations/${collaborationId}/applications/${applicationId}`, {
       method: "PATCH",

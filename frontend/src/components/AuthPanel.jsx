@@ -1,12 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { api } from "../api/client.js";
 import { useAuth } from "../state/AuthContext.jsx";
 
 export default function AuthPanel() {
   const { login, signup } = useAuth();
   const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", college: "", invite_code: "" });
+  const [colleges, setColleges] = useState([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (mode !== "signup") return;
+    const timer = setTimeout(() => {
+      api
+        .listColleges({ q: form.college, limit: 80 })
+        .then(setColleges)
+        .catch(() => setColleges([]));
+    }, 160);
+    return () => clearTimeout(timer);
+  }, [mode, form.college]);
 
   function updateField(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -17,7 +30,13 @@ export default function AuthPanel() {
     setError("");
     try {
       if (mode === "signup") {
-        await signup(form);
+        await signup({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          college: form.college,
+          invite_code: form.invite_code || null,
+        });
       } else {
         await login({ email: form.email, password: form.password });
       }
@@ -46,10 +65,37 @@ export default function AuthPanel() {
           </button>
         </div>
         {mode === "signup" && (
-          <label>
-            Name
-            <input name="name" value={form.name} onChange={updateField} required />
-          </label>
+          <>
+            <label>
+              Name
+              <input name="name" value={form.name} onChange={updateField} required />
+            </label>
+            <label>
+              College
+              <input
+                list="college-options"
+                name="college"
+                value={form.college}
+                onChange={updateField}
+                placeholder="Search your college"
+                required
+              />
+              <datalist id="college-options">
+                {colleges.map((college) => (
+                  <option key={college} value={college} />
+                ))}
+              </datalist>
+            </label>
+            <label>
+              Invite code
+              <input
+                name="invite_code"
+                value={form.invite_code}
+                onChange={updateField}
+                placeholder="Optional campus code"
+              />
+            </label>
+          </>
         )}
         <label>
           Email

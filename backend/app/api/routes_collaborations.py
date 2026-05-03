@@ -33,6 +33,7 @@ router = APIRouter(prefix="/collaborations", tags=["collaborations"])
 def list_collaborations(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    scope: str = Query(default="college", pattern="^(college|global)$"),
     post_status: str = Query(default=POST_STATUS_OPEN, pattern="^(Open|Archived|All)$"),
     match_my_skills: bool = Query(default=False),
     min_skill_matches: int = Query(default=1, ge=1, le=50),
@@ -48,6 +49,12 @@ def list_collaborations(
 
     if post_status != "All":
         query = query.filter(Collaboration.post_status == post_status)
+    if scope == "college":
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="College feed requires authentication")
+        if not current_user.college:
+            return []
+        query = query.join(Collaboration.owner).filter(User.college == current_user.college)
 
     if match_my_skills:
         if current_user is None:

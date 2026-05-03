@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.orm import selectinload
 
-from app.api import routes_auth, routes_collaborations, routes_users, routes_ws
+from app.api import routes_auth, routes_colleges, routes_collaborations, routes_invite, routes_users, routes_ws
 from app.api.collaboration_lifecycle import archive_expired_collaborations
 from app.api.skills import set_collaboration_required_skills, set_user_skills
 from app.core.config import get_settings
@@ -49,6 +49,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(routes_auth.router, prefix="/api")
+    app.include_router(routes_colleges.router, prefix="/api")
+    app.include_router(routes_invite.router, prefix="/api")
     app.include_router(routes_users.router, prefix="/api")
     app.include_router(routes_collaborations.router, prefix="/api")
     app.include_router(routes_ws.router)
@@ -64,6 +66,9 @@ def create_app() -> FastAPI:
             connection.execute(
                 text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE")
             )
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS college VARCHAR(255)"))
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS college_verified BOOLEAN NOT NULL DEFAULT FALSE"))
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS campus_rep BOOLEAN NOT NULL DEFAULT FALSE"))
             connection.execute(
                 text("ALTER TABLE collaborations ADD COLUMN IF NOT EXISTS post_type VARCHAR(80) NOT NULL DEFAULT 'Event'")
             )

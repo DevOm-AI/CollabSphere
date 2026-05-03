@@ -11,6 +11,9 @@ class UserBase(BaseModel):
     graduation_year: int | None = None
     portfolio_url: str | None = None
     email_notifications: bool = True
+    college: str | None = None
+    college_verified: bool = False
+    campus_rep: bool = False
     skills: list[str] = []
     interests: list[str] = []
     contributions: list[str] = []
@@ -30,6 +33,7 @@ class ProfileUpdate(BaseModel):
     graduation_year: int | None = None
     portfolio_url: str | None = None
     email_notifications: bool | None = None
+    college: str | None = None
     skills: list[str] | None = None
     interests: list[str] | None = None
     contributions: list[str] | None = None

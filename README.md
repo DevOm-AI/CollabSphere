@@ -34,7 +34,8 @@ frontend/
 
 ## Database Schema
 
-- `users`: account, profile, mobile number, email, department, graduation year, portfolio, notification preference, interests, contributions
+- `users`: account, profile, mobile number, email, college, college verification, campus rep flag, department, graduation year, portfolio, notification preference, interests, contributions
+- `invite_codes`: one generated campus invite code per college, tied to the user who created it
 - `skills`: normalized skill names used for matching
 - `user_skills`: many-to-many links between users and skills
 - `collaboration_required_skills`: many-to-many links between collaborations and required skills
@@ -143,7 +144,10 @@ Open `http://localhost:5173`.
 - `PUT /api/users/me`
 - `GET /api/users/me/portfolio`
 - `PUT /api/users/me/password`
-- `GET /api/collaborations?limit=20&offset=0`
+- `GET /api/colleges?q=college&limit=50`
+- `POST /api/invite/generate`
+- `GET /api/collaborations?limit=20&offset=0&scope=college`
+- `GET /api/collaborations?scope=global`
 - `GET /api/collaborations?match_my_skills=true&min_skill_matches=2`
 - `POST /api/collaborations`
 - `GET /api/collaborations/{id}`
@@ -157,7 +161,7 @@ Open `http://localhost:5173`.
 
 ## Usage Flow
 
-1. Sign up or log in.
+1. Sign up with a college selected from the searchable list or log in.
 2. Fill in skills, interests, and contributions on your profile.
 3. Create a collaboration with required skills and slots.
 4. Other students apply from the collaboration detail panel.
@@ -168,12 +172,13 @@ Open `http://localhost:5173`.
 
 ## UI Sections
 
-- Open Posts: browse posts, inspect event details, view applicant contact details as the creator, and create posts from a modal.
+- Open Posts: browse college-scoped posts by default, switch to Global, inspect event details, view applicant contact details as the creator, and create posts from a modal.
 - Open Posts search: filter by title, creator name, required skill, post type, or event date.
 - Skill matching: filter open posts where the signed-in student's skills match at least a chosen number of required skills.
 - Student Profile: visual profile page with editable name, mobile number, skills, interests, contributions, and archived collaboration portfolio items.
+- Campus community: campus reps generate the first invite code for their college, and invite-code signups are marked college verified.
 - Student Profile portfolio: archived accepted or created collaborations become achievement timeline items with a summary such as completed hackathons and research projects.
 - Collaborations: application history for the signed-in student.
 - Settings: change password, department, graduation year, portfolio link, and email notification preference.
 
-Existing development databases are upgraded on backend startup with the new `mobile_number`, settings, `post_type`, `event_datetime`, `post_status`, `archived_at`, `offered_skills`, and normalized skill matching tables.
+Existing development databases are upgraded on backend startup with the new `mobile_number`, college fields, settings, `post_type`, `event_datetime`, `post_status`, `archived_at`, `offered_skills`, invite codes, and normalized skill matching tables.

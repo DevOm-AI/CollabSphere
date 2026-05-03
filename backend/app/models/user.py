@@ -19,6 +19,9 @@ class User(Base):
     graduation_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     portfolio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    college: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    college_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    campus_rep: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     legacy_skills: Mapped[list[str]] = mapped_column("skills", ARRAY(String), default=list, nullable=False)
     interests: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
@@ -27,6 +30,7 @@ class User(Base):
 
     collaborations = relationship("Collaboration", back_populates="owner", cascade="all, delete-orphan")
     applications = relationship("Application", back_populates="applicant", cascade="all, delete-orphan")
+    invite_codes = relationship("InviteCode", back_populates="creator", cascade="all, delete-orphan")
     skill_records = relationship(
         "Skill",
         secondary=user_skills,
