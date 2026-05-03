@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.orm import selectinload
 
@@ -7,6 +9,7 @@ from app.api import routes_auth, routes_collaborations, routes_users, routes_ws
 from app.api.skills import set_collaboration_required_skills, set_user_skills
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
+from app.core.rate_limit import limiter
 from app.models.collaboration import Collaboration
 from app.models.user import User
 
@@ -33,6 +36,8 @@ def backfill_normalized_skills() -> None:
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.add_middleware(
         CORSMiddleware,
