@@ -217,6 +217,35 @@ def apply_to_collaboration(
     return application
 
 
+@router.delete("/{collaboration_id}/apply", status_code=status.HTTP_204_NO_CONTENT)
+async def withdraw_application(
+    collaboration_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    archive_expired_collaborations(db)
+    collaboration = db.get(Collaboration, collaboration_id)
+    if collaboration is None:
+        raise HTTPException(status_code=404, detail="Collaboration not found")
+
+    application = (
+        db.query(Application)
+        .filter(
+            Application.collaboration_id == collaboration_id,
+            Application.applicant_id == current_user.id,
+        )
+        .first()
+    )
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    was_accepted = application.status == ApplicationStatus.accepted
+    db.delete(application)
+    db.commit()
+    if was_accepted:
+        await manager.broadcast_slots(collaboration_id, slot_payload(db, collaboration))
+
+
 @router.get("/{collaboration_id}/applications", response_model=list[ApplicationRead])
 def list_applications(
     collaboration_id: int,

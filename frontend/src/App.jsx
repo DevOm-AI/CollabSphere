@@ -111,6 +111,15 @@ export default function App() {
     setSelectedId((current) => (current === id ? null : current));
   }
 
+  async function withdrawApplication(collaborationId) {
+    try {
+      await api.withdrawApplication(collaborationId);
+      await refreshCollaborations();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function switchSection(section) {
     setActiveSection(section);
     setMenuOpen(false);
@@ -437,6 +446,13 @@ export default function App() {
                     <span key={skill}>{skill}</span>
                   ))}
                 </div>
+                <button
+                  className="danger"
+                  type="button"
+                  onClick={() => withdrawApplication(item.collaboration.id)}
+                >
+                  Withdraw Application
+                </button>
               </motion.article>
             ))}
             {joinedCollaborations.length === 0 && <p className="muted">You have not applied to any collaborations yet.</p>}

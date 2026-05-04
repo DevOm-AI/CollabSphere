@@ -53,6 +53,7 @@ export const api = {
   getCollaboration: (id) => request(`/collaborations/${id}`),
   apply: (id, payload) =>
     request(`/collaborations/${id}/apply`, { method: "POST", body: JSON.stringify(payload) }),
+  withdrawApplication: (id) => request(`/collaborations/${id}/apply`, { method: "DELETE" }),
   listApplications: (id) => request(`/collaborations/${id}/applications`),
   myCollaborations: () => request("/users/me/collaborations"),
   generateInvite: () => request("/invite/generate", { method: "POST" }),

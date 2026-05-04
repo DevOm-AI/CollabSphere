@@ -133,6 +133,20 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
     }
   }
 
+  async function withdrawApplication() {
+    setNotice("");
+    setError("");
+    try {
+      await api.withdrawApplication(collaboration.id);
+      setMessage("");
+      setOfferedSkills("");
+      setNotice("Application withdrawn");
+      onApplicationChanged();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function applyButtonLabel() {
     if (isArchived) return "Archived";
     if (appliedStatus === "accepted") return "Applied";
@@ -269,34 +283,50 @@ export default function CollaborationDetail({ id, appliedStatus, onChanged, onDe
         </div>
       )}
 
-      {!isOwner && !isArchived && (
+      {!isOwner && (!isArchived || appliedStatus) && (
         <form className="stack compact apply-card" onSubmit={apply}>
           <h3>Apply to join</h3>
-          <label>
-            Skills you will provide
-            <input
-              value={offeredSkills}
-              onChange={(event) => setOfferedSkills(event.target.value)}
-              placeholder="Backend APIs, pitch deck, UI polish"
-            />
-          </label>
-          <label>
-            Message
-            <textarea
-              maxLength="1000"
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder="Tell the creator how you can help"
-            />
-            <small className="char-count">{messageLength}/1000</small>
-          </label>
-          <button
-            className={appliedStatus === "accepted" ? "applied-button" : "primary pulse-action"}
-            type="submit"
-            disabled={isArchived || collaboration.is_full || Boolean(appliedStatus)}
-          >
-            {applyButtonLabel()}
-          </button>
+          {appliedStatus && (
+            <p className="muted">
+              Your application is currently <strong>{appliedStatus}</strong>. You can withdraw it from this post.
+            </p>
+          )}
+          {!appliedStatus && (
+            <>
+              <label>
+                Skills you will provide
+                <input
+                  value={offeredSkills}
+                  onChange={(event) => setOfferedSkills(event.target.value)}
+                  placeholder="Backend APIs, pitch deck, UI polish"
+                />
+              </label>
+              <label>
+                Message
+                <textarea
+                  maxLength="1000"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Tell the creator how you can help"
+                />
+                <small className="char-count">{messageLength}/1000</small>
+              </label>
+            </>
+          )}
+          <div className="inline-actions">
+            <button
+              className={appliedStatus === "accepted" ? "applied-button" : "primary pulse-action"}
+              type="submit"
+              disabled={isArchived || collaboration.is_full || Boolean(appliedStatus)}
+            >
+              {applyButtonLabel()}
+            </button>
+            {appliedStatus && (
+              <button className="danger" type="button" onClick={withdrawApplication}>
+                Withdraw Application
+              </button>
+            )}
+          </div>
         </form>
       )}
 
